@@ -92,6 +92,9 @@ func (r *RundownProtection) Wait() {
 
 	// Wait if a reference is being held
 	if val != 0 {
+		// IMPORTANT NOTE: The next sentence will panic with "fatal error: all goroutines are asleep - deadlock!"
+		//                 if your code generates one. For e.g., if you put the Wait call inside a mutex being held
+		//                 and a goroutine tries to lock the same mutex.
 		<-r.done
 	}
 	close(r.done)
