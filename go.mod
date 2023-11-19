@@ -1,3 +1,3 @@
 module github.com/randlabs/rundown-protection
 
-go 1.13
+go 1.18

@@ -1,7 +1,10 @@
 package rundown_protection_test
 
 import (
+	"context"
+	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,6 +42,7 @@ func TestRundownProtection(t *testing.T) {
 
 	// The following goroutine will run after 10 seconds simulating acquisition of the rundown object
 	// After the wait (shutdown) call.
+	var acquireMustFailErr int32 = 0
 	wg.Add(1)
 	go func() {
 		// Wait 10 seconds
@@ -47,7 +51,7 @@ func TestRundownProtection(t *testing.T) {
 
 		// Try to acquire after wait was called. Must fail.
 		if r.Acquire() {
-			t.Fatalf("Acquired rundown protection after Wait call.")
+			atomic.StoreInt32(&acquireMustFailErr, 1)
 		}
 
 		wg.Done()
@@ -55,6 +59,14 @@ func TestRundownProtection(t *testing.T) {
 
 	t.Logf("Before rundown wait.")
 	r.Wait()
+	if atomic.LoadInt32(&acquireMustFailErr) != 0 {
+		t.Fatalf("Acquired rundown protection after Wait call.")
+	}
+
+	if !errors.Is(r.Err(), context.Canceled) {
+		t.Fatalf("Associated context is not canceled.")
+	}
+
 	t.Logf("Rundown wait completed. Waiting for the 10-second sleep to finish.")
 
 	wg.Wait()

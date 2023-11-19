@@ -1,17 +1,9 @@
-/*
-Golang implementation of a rundown protection for accessing a shared object
-
-Source code and other details for the project are available at GitHub:
-
-	https://github.com/RandLabs/rundown-protection
-
-More usage please see README.md and tests.
-*/
-
 package rundown_protection
 
 import (
+	"context"
 	"sync/atomic"
+	"time"
 )
 
 //------------------------------------------------------------------------------
@@ -23,8 +15,9 @@ const (
 //------------------------------------------------------------------------------
 
 type RundownProtection struct {
-	counter uint32
-	done    chan struct{}
+	counter   uint32
+	waitAllCh chan struct{}
+	doneCh    chan struct{}
 }
 
 //------------------------------------------------------------------------------
@@ -39,7 +32,8 @@ func Create() *RundownProtection {
 // Initialize initializes a rundown protection object.
 func (r *RundownProtection) Initialize() {
 	atomic.StoreUint32(&r.counter, 0)
-	r.done = make(chan struct{}, 1)
+	r.waitAllCh = make(chan struct{}, 1)
+	r.doneCh = make(chan struct{})
 	return
 }
 
@@ -48,17 +42,16 @@ func (r *RundownProtection) Acquire() bool {
 	for {
 		val := atomic.LoadUint32(&r.counter)
 
-		// If a rundown is in progress, cancel
+		// If a rundown is in progress, cancel acquisition
 		if (val & rundownActive) != 0 {
 			return false
 		}
 
 		// Try to increment the reference counter
 		if atomic.CompareAndSwapUint32(&r.counter, val, val+1) {
-			break
+			return true
 		}
 	}
-	return true
 }
 
 // Release decrements the usage counter.
@@ -70,33 +63,64 @@ func (r *RundownProtection) Release() {
 		if atomic.CompareAndSwapUint32(&r.counter, val, newVal) {
 			// If a wait is in progress and the last reference was released, complete the wait
 			if newVal == rundownActive {
-				r.done <- struct{}{}
+				r.waitAllCh <- struct{}{}
 			}
-			break
+			return
 		}
 	}
-	return
 }
 
 // Wait initiates the shutdown process and waits until all acquisitions are released.
 func (r *RundownProtection) Wait() {
-	var val uint32
-
-	// Set rundown active flag
 	for {
-		val = atomic.LoadUint32(&r.counter)
+		// Set rundown active flag
+		val := atomic.LoadUint32(&r.counter)
+		if (val & rundownActive) != 0 {
+			panic("rundownProtection::wait already called")
+		}
+
 		if atomic.CompareAndSwapUint32(&r.counter, val, val|rundownActive) {
-			break
+			// First signal our context wrapper
+			close(r.doneCh)
+
+			// If a reference is still being held, wait until released
+			if val != 0 {
+				// IMPORTANT NOTE: "fatal error: all goroutines are asleep - deadlock!" panic will be raised on the next
+				//                 channel operation if, for e.g., you put the Wait call inside a mutex being held and a
+				//                 goroutine tries to lock the same mutex.
+				//
+				// NOTE: It is possible the channel already contains a buffered object if the references being held are
+				//       released before this line executes.
+				<-r.waitAllCh
+			}
+
+			close(r.waitAllCh)
+			return
 		}
 	}
+}
 
-	// Wait if a reference is being held
-	if val != 0 {
-		// IMPORTANT NOTE: The next sentence will panic with "fatal error: all goroutines are asleep - deadlock!"
-		//                 if your code generates one. For e.g., if you put the Wait call inside a mutex being held
-		//                 and a goroutine tries to lock the same mutex.
-		<-r.done
-	}
-	close(r.done)
+// Deadline returns the time when work done on behalf of this context should be canceled.
+func (_ *RundownProtection) Deadline() (deadline time.Time, ok bool) {
 	return
+}
+
+// Done returns a channel that's closed when work done on behalf of this context should be canceled.
+func (r *RundownProtection) Done() <-chan struct{} {
+	return r.doneCh
+}
+
+// Err returns a non-nil error explaining why the channel was closed or nil if still open.
+func (r *RundownProtection) Err() error {
+	select {
+	case <-r.doneCh:
+		return context.Canceled
+	default:
+		return nil
+	}
+}
+
+// Value returns the value associated with this context for key, if any exists, or nil.
+func (_ *RundownProtection) Value(_ any) any {
+	return nil
 }
