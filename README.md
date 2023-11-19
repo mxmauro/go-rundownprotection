@@ -2,9 +2,11 @@
 
 Golang implementation of a rundown protection for accessing a shared object.
 
-Some times we need to access a shared resource than can be created and deleted by a routine we don't control. Or the opposite, we know when we create and delete the resource but we don't control when it is accessed.
+Some times we need to access a shared resource than can be created and deleted by a routine we don't control. Or the
+opposite, we know when we create and delete the resource but we don't control when it is accessed.
 
-Unlike `sync.WaitGroup`, this library does not panic if you try to access an unavailable resource. Just check the return `Acquire` method to ensure if you can safely use the resource.
+Unlike `sync.WaitGroup`, this library does not panic if you try to access an unavailable resource. Just check the return
+`Acquire` method to ensure if you can safely use the resource.
 
 ## Usage
 
@@ -33,9 +35,8 @@ if r.Acquire() {
 }
 ```
 
-
 Run demo: `go run ./_examples/demo.go`
 
 ## License
 
-[Apache](/LICENSE)
+[Apache](/LICENSE.txt)
