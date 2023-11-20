@@ -85,12 +85,12 @@ func (r *RundownProtection) Wait() {
 
 			// If a reference is still being held, wait until released
 			if val != 0 {
-				// IMPORTANT NOTE: "fatal error: all goroutines are asleep - deadlock!" panic will be raised on the next
-				//                 channel operation if, for e.g., you put the Wait call inside a mutex being held and a
-				//                 goroutine tries to lock the same mutex.
+				// IMPORTANT NOTE: "fatal error: all goroutines are asleep - deadlock!" panic will be raised on the
+				//                 channel operation below if, for e.g., you put the Wait call inside a mutex being
+				//                 held and a goroutine tries to lock the same mutex.
 				//
-				// NOTE: It is possible the channel already contains a buffered object if the references being held are
-				//       released before this line executes.
+				// NOTE: It is possible the channel already contains a buffered object if the references being held
+				//       are released before this line executes.
 				<-r.waitAllCh
 			}
 
@@ -112,12 +112,10 @@ func (r *RundownProtection) Done() <-chan struct{} {
 
 // Err returns a non-nil error explaining why the channel was closed or nil if still open.
 func (r *RundownProtection) Err() error {
-	select {
-	case <-r.doneCh:
+	if (atomic.LoadUint32(&r.counter) & rundownActive) != 0 {
 		return context.Canceled
-	default:
-		return nil
 	}
+	return nil
 }
 
 // Value returns the value associated with this context for key, if any exists, or nil.

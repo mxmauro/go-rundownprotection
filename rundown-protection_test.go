@@ -14,7 +14,7 @@ import (
 //------------------------------------------------------------------------------
 
 func TestRundownProtection(t *testing.T) {
-	var wg sync.WaitGroup
+	wg := sync.WaitGroup{}
 
 	// Create the rundown protection object
 	r := rp.Create()
@@ -71,4 +71,24 @@ func TestRundownProtection(t *testing.T) {
 
 	wg.Wait()
 	t.Logf("Done!")
+}
+
+func TestContext(t *testing.T) {
+	wg := sync.WaitGroup{}
+
+	// Create the rundown protection object
+	r := rp.Create()
+
+	wg.Add(1)
+	go func(ctx context.Context) {
+		// Wait for context
+		<-ctx.Done()
+
+		wg.Done()
+	}(r)
+
+	r.Wait()
+	t.Logf("Rundown wait completed.")
+	wg.Wait()
+	t.Logf("WaitGroup completed.")
 }
