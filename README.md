@@ -39,4 +39,4 @@ Run demo: `go run ./_examples/demo.go`
 
 ## License
 
-[Apache](/LICENSE.txt)
+See [LICENSE](/LICENSE) file for details.
