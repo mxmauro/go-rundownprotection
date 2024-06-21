@@ -32,7 +32,7 @@ func Create() *RundownProtection {
 // Initialize initializes a rundown protection object.
 func (r *RundownProtection) Initialize() {
 	atomic.StoreUint32(&r.counter, 0)
-	r.waitAllCh = make(chan struct{}, 1)
+	r.waitAllCh = make(chan struct{})
 	r.doneCh = make(chan struct{})
 	return
 }
@@ -61,9 +61,9 @@ func (r *RundownProtection) Release() {
 		val := atomic.LoadUint32(&r.counter)
 		newVal := (val & rundownActive) | ((val & (^rundownActive)) - 1)
 		if atomic.CompareAndSwapUint32(&r.counter, val, newVal) {
-			// If a wait is in progress and the last reference was released, complete the wait
+			// If a wait is in progress and the last reference is being released, complete the wait
 			if newVal == rundownActive {
-				r.waitAllCh <- struct{}{}
+				close(r.waitAllCh)
 			}
 			return
 		}
@@ -75,10 +75,16 @@ func (r *RundownProtection) Wait() {
 	for {
 		// Set rundown active flag
 		val := atomic.LoadUint32(&r.counter)
+
+		// Check if wait was already called (concurrent waits are also allowed)
 		if (val & rundownActive) != 0 {
-			panic("rundownProtection::wait already called")
+			<-r.waitAllCh
+
+			// Done
+			return
 		}
 
+		// Set rundown active flag
 		if atomic.CompareAndSwapUint32(&r.counter, val, val|rundownActive) {
 			// First signal our context wrapper
 			close(r.doneCh)
@@ -92,9 +98,11 @@ func (r *RundownProtection) Wait() {
 				// NOTE: It is possible the channel already contains a buffered object if the references being held
 				//       are released before this line executes.
 				<-r.waitAllCh
+			} else {
+				close(r.waitAllCh)
 			}
 
-			close(r.waitAllCh)
+			// Done
 			return
 		}
 	}
