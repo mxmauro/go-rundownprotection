@@ -45,6 +45,8 @@ func TestRundownProtection(t *testing.T) {
 	var acquireMustFailErr int32 = 0
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+
 		// Wait 10 seconds
 		t.Logf("Initiating 10-second sleep.")
 		time.Sleep(10 * time.Second)
@@ -53,8 +55,6 @@ func TestRundownProtection(t *testing.T) {
 		if r.Acquire() {
 			atomic.StoreInt32(&acquireMustFailErr, 1)
 		}
-
-		wg.Done()
 	}()
 
 	t.Logf("Before rundown wait.")
@@ -91,4 +91,56 @@ func TestContext(t *testing.T) {
 	t.Logf("Rundown wait completed.")
 	wg.Wait()
 	t.Logf("WaitGroup completed.")
+}
+
+func TestMultipleWaitCalls1(t *testing.T) {
+	r := rp.Create()
+
+	r.Acquire()
+	go func() {
+		time.Sleep(1 * time.Second)
+		r.Release()
+	}()
+
+	r.Wait()
+
+	// A new wait after the first one finished, will act as a no-op
+	r.Wait()
+}
+
+func TestMultipleWaitCalls2(t *testing.T) {
+	wg := sync.WaitGroup{}
+
+	r := rp.Create()
+
+	for i := 1; i <= 30; i++ {
+		r.Acquire()
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			time.Sleep(1 * time.Second)
+			r.Release()
+			r.Wait() // Multiple simultaneous waits are allowed
+		}()
+	}
+
+	wg.Wait()
+}
+
+func TestMultipleWaitCalls2WithoutWG(t *testing.T) {
+	r := rp.Create()
+
+	for i := 1; i <= 30; i++ {
+		r.Acquire()
+
+		go func() {
+			time.Sleep(1 * time.Second)
+			r.Release()
+			r.Wait() // Multiple simultaneous waits are allowed
+		}()
+	}
+
+	r.Wait()
 }
