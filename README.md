@@ -10,7 +10,7 @@ Unlike `sync.WaitGroup`, this library does not panic if you try to access an una
 
 ##### NOTE:
 
-* This is a fork of the original [randlabs/go-postgres](https://github.com/randlabs/rundown-protection) library.
+* This is a fork of the original [RandLabs.IO's rundown protection library](https://github.com/randlabs/rundown-protection).
   May contain some modified functionality.
 
 ## Usage
