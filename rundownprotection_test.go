@@ -1,4 +1,6 @@
-package rundown_protection_test
+// See the LICENSE file for license details.
+
+package rundownprotection_test
 
 import (
 	"context"
@@ -8,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	rp "github.com/randlabs/rundown-protection"
+	rp "github.com/mxmauro/go-rundownprotection"
 )
 
 //------------------------------------------------------------------------------

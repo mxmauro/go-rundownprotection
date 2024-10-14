@@ -8,10 +8,15 @@ opposite, we know when we create and delete the resource but we don't control wh
 Unlike `sync.WaitGroup`, this library does not panic if you try to access an unavailable resource. Just check the return
 `Acquire` method to ensure if you can safely use the resource.
 
+##### NOTE:
+
+* This is a fork of the original [randlabs/go-postgres](https://github.com/randlabs/rundown-protection) library.
+  May contain some modified functionality.
+
 ## Usage
 
 ```go
-import rp "github.com/randlabs/rundown-protection"
+import rp "github.com/mxmauro/go-rundownprotection"
 ```
 
 ```go

@@ -1,4 +1,6 @@
-package rundown_protection
+// See the LICENSE file for license details.
+
+package rundownprotection
 
 import (
 	"context"

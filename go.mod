@@ -1,3 +1,3 @@
-module github.com/randlabs/rundown-protection
+module github.com/mxmauro/go-rundownprotection
 
 go 1.18
